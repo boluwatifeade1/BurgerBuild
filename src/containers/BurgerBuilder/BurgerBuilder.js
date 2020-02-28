@@ -17,16 +17,22 @@ const INGREDIENT_PRICES = {
 
 class BurgerBuilder extends Component {
   state = {
-    ingredients: {
-      salad:0,
-      bacon:0,
-      cheese:0,
-      meat:0
-    },
+    ingredients: null,
     totalPrice: 0,
     purchaseable: false,
     purchasing: false,
-    loading:false
+    loading:false,
+    error: false
+  }
+
+  componentDidMount () {
+    axios.get('https://burger-a0424.firebaseio.com/ingredients.json')
+      .then(response => {
+        this.setState({ingredients:response.data});
+      })
+      .catch(error => {
+        this.setState({error:true})
+      })
   }
 
   updatedPurchaseState (ingredients) {
@@ -115,11 +121,28 @@ class BurgerBuilder extends Component {
       disabledInfo[key] = disabledInfo[key] <= 0
     }
 
-    let orderSummary =  <OrderSummary 
+    let orderSummary = null;
+    let burger = this.state.error ? <p>ingredients can't be loaded</p> : <Spinner />
+
+    if(this.state.ingredients) {
+      burger = 
+        <Aux>
+          <Burger ingredients={this.state.ingredients}/>
+          <BuildControls 
+            ingredientAdded = {this.addIngredientsHandler}
+            ingredientRemoved = {this.removeIngredientsHandler}
+            disabled = {disabledInfo}
+            price={this.state.totalPrice}
+            ordered = {this.purchaseHandler}
+            purchaseable={this.state.purchaseable}
+          />
+        </Aux>
+      orderSummary =  <OrderSummary 
       purchaseCancelled={this.purchaseCancelHandler}
       ingredients={this.state.ingredients}
       purchaseContinued={this.purchaseContinueHandler}
       price={this.state.totalPrice}/>
+    }
 
     if(this.state.loading) {
       orderSummary = <Spinner />
@@ -130,18 +153,10 @@ class BurgerBuilder extends Component {
         <Modal show={this.state.purchasing} modalClosed={this.purchaseCancelHandler}>
           {orderSummary}
         </Modal>
-        <Burger ingredients={this.state.ingredients}/>
-        <BuildControls 
-          ingredientAdded = {this.addIngredientsHandler}
-          ingredientRemoved = {this.removeIngredientsHandler}
-          disabled = {disabledInfo}
-          price={this.state.totalPrice}
-          ordered = {this.purchaseHandler}
-          purchaseable={this.state.purchaseable}
-        />
+        {burger}
       </Aux>
     );
   }
 }
 
-export default withErrorHandler(BurgerBuilder);
+export default withErrorHandler(BurgerBuilder, axios);
